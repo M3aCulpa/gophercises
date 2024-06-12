@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/csv"
 	"flag"
-	"math"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"time"
 )
@@ -74,10 +74,10 @@ func main() {
 		<-timer.C
 		fmt.Print("\033[H\033[2J") // clear screen
 		fmt.Print("Time's up! Press enter to see your results...")
-		done <- true  // timer expire signal
+		done <- true // timer expire signal
 	}()
 
-	QuizLoop:
+QuizLoop:
 	for _, problem := range quiz {
 		select {
 		case <-done:
@@ -87,13 +87,13 @@ func main() {
 			fmt.Printf("%s : ", problem.question)
 			fmt.Scanln(&userAnswer)
 			fmt.Print("\033[H\033[2J") // clear screen
-	
+
 			isCorrect := userAnswer == problem.answer
 			if isCorrect {
 				correct++
 			}
 		}
-	}	
+	}
 
 	timer.Stop()
 
