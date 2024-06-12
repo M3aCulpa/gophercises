@@ -69,7 +69,7 @@ func main() {
 
 	// channel to signal that the time is up
 	done := make(chan bool, 1)
-
+	
 	go func() {
 		<-timer.C
 		fmt.Print("\033[H\033[2J") // clear screen
@@ -77,11 +77,11 @@ func main() {
 		done <- true // timer expire signal
 	}()
 
-QuizLoop:
+	QuizLoop:
 	for _, problem := range quiz {
 		select {
 		case <-done:
-			break QuizLoop
+			break QuizLoop 
 		default:
 			var userAnswer string
 			fmt.Printf("%s : ", problem.question)
