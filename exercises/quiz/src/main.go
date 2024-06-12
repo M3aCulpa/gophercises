@@ -2,21 +2,20 @@ package main
 
 import (
 	"encoding/csv"
+	"flag"
 	"math"
 	"fmt"
 	"log"
 	"os"
+	"time"
 )
 
-// type to hold quiz question instance
-type quiz struct {
+type problem struct {
 	question string
-	answer string
-	grade *bool // optional bool to track correct (true) and incorrect (false) answers, initialized as <nil> for unanswered questions
+	answer   string
 }
 
-// read and parse csv data and save to an array
-func readCSV() []quiz {
+func readCSV() []problem {
 	file, err := os.Open("problems.csv")
 	if err != nil {
 		log.Fatal(err)
@@ -29,73 +28,80 @@ func readCSV() []quiz {
 		log.Fatal(err)
 	}
 
-	var data []quiz
+	var quiz []problem
 	for _, line := range lines {
-		data = append(data, quiz{
+		quiz = append(quiz, problem{
 			question: line[0],
-			answer: line[1],
+			answer:   line[1],
 		})
 	}
 
-	return data
+	return quiz
 }
 
-// convert percentage to grade
 func letterGrade(score float64) string {
-    switch {
-    case score >= 90:
-        return "A"
-    case score >= 80:
-        return "B"
-    case score >= 70:
-        return "C"
-    case score >= 60:
-        return "D"
-    default:
-        return "F"
-    }
+	switch {
+	case score >= 90:
+		return "A"
+	case score >= 80:
+		return "B"
+	case score >= 70:
+		return "C"
+	case score >= 60:
+		return "D"
+	default:
+		return "F"
+	}
 }
 
 func main() {
-	// initialize full quiz
-	quizzes := readCSV()
+	timeout := flag.Int("t", 30, "timeout in seconds")
+	flag.Parse()
 
-	print("Press enter to start quiz...")
-	fmt.Scanln()
+	timer := time.NewTimer(time.Duration(*timeout) * time.Second)
+	quiz := readCSV()
+
+	fmt.Scanln("Press enter to start the quiz...")
 	fmt.Print("\033[H\033[2J") // clear screen
 
-
-	// iterate through array of quizzes, prompt user for answers, and grade
-	for i, quiz := range quizzes {
-		var userAnswer string
-		fmt.Printf("\r%s : ", quiz.question)
-		fmt.Scan(&userAnswer)
-		fmt.Print("\033[H\033[2J") // clear screen
-
-		quiz.grade = new(bool)
-		if userAnswer == quiz.answer {
-			*quiz.grade = true
-		} else {
-			*quiz.grade = false
-		}
-		quizzes[i].grade = quiz.grade
-	}
-
-	// print results
 	correct := 0.0
-	length := float64(len(quizzes))
+	length := float64(len(quiz))
 
-	// calculate correct answers
-	for _, quiz := range quizzes {
-		if *quiz.grade {
-			correct++
+	// channel to signal that the time is up
+	done := make(chan bool, 1)
+
+	go func() {
+		<-timer.C
+		fmt.Print("\033[H\033[2J") // clear screen
+		fmt.Print("Time's up! Press enter to see your results...")
+		done <- true  // timer expire signal
+	}()
+
+	QuizLoop:
+	for _, problem := range quiz {
+		select {
+		case <-done:
+			break QuizLoop
+		default:
+			var userAnswer string
+			fmt.Printf("%s : ", problem.question)
+			fmt.Scanln(&userAnswer)
+			fmt.Print("\033[H\033[2J") // clear screen
+	
+			isCorrect := userAnswer == problem.answer
+			if isCorrect {
+				correct++
+			}
 		}
-	}
+	}	
+
+	timer.Stop()
 
 	percentage := math.Round(correct / length * 100)
+	grade := letterGrade(percentage)
 
-	fmt.Println("Quiz Results:     ", letterGrade(percentage))
-	fmt.Printf("Grade Percentage:  %v%%\n\n", percentage)
-	fmt.Println("Total questions:  ", length)
-	fmt.Println("Correct answers:  ", correct)
+	fmt.Println("Quiz Results: ", grade)
+	fmt.Printf("Grade Percentage: %v%%\n", percentage)
+	fmt.Println("Total questions: ", length)
+	fmt.Println("Correct answers: ", correct)
 }
